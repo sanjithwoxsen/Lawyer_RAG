@@ -40,11 +40,26 @@ class OllamaModel:
         except Exception:
             return "Failed to generate response from Ollama."
 
+
     @staticmethod
     def list_models(host=None):
-        """Lists available Ollama models locally or on an external host."""
+        """
+        Attempts to list available Ollama models and returns:
+        - models: a list of model names
+        - connected: a boolean indicating connection status
+        """
         try:
             client = Client(host=host) if host else Client()
-            return client.list()
-        except Exception:
-            return None
+            model_list = client.list()
+
+            models = [model.model for model in model_list.models] if hasattr(model_list, "models") else []
+            return {
+                "models": models,
+                "connected": True
+            }
+        except Exception as e:
+            print(f"[OllamaModel] Connection failed: {e}")
+            return {
+                "models": ["Ollama not connected"],
+                "connected": False
+            }

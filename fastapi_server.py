@@ -1,91 +1,101 @@
 from io import BytesIO
-from fastapi import FastAPI, UploadFile, File
 from typing import List
-import uvicorn
+from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 from modules.document.datapreprocess import DocumentProcessor
 from modules.document.vector_db import VectorStore
-from modules.retrieval.vector_retriever import VectorRetriever  # Importing retrieval logic
+from modules.loggers.interaction_logger import log_interaction
+from modules.retrieval.vector_retriever import VectorRetriever
 from modules.llm.ollama_llms import OllamaModel
 from modules.llm.gemini import GeminiPro
 from modules.document.cleanup import Cleanup
+
 app = FastAPI()
+
 
 @app.get("/list_models/")
 async def list_models():
     """Lists available AI models, including Gemini Pro and Ollama models."""
-    available_models = OllamaModel.list_models()
-
-    if not available_models:
-        ollama_models = ["Ollama not connected"]
-    else:
-        ollama_models = [model.model for model in available_models.models]
+    ollama_data = OllamaModel.list_models()
+    gemini_models = [
+        "gemini-1.5-flash", "gemini-1.5-flash-8b",
+        "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemma-3-27b-it"
+    ]
 
     return {
-        "ollama_models": ollama_models,
-        "gemini_models": ["Gemini Pro"]
+        "ollama_models": ollama_data.get("models", []),
+        "gemini_models": gemini_models
     }
+
+
+async def handle_document_upload(files: List[UploadFile], category: str) -> str:
+    """Helper function to process and store documents."""
+    if not files:
+        return "No files uploaded"
+
+    file_objs = [BytesIO(await file.read()) for file in files]
+    processor = DocumentProcessor(file_objs)
+    text_chunks = processor.run()
+
+    success = text_chunks and VectorStore.store_VDB(category, text_chunks)
+    return "Success" if success else "Failure"
+
+
 @app.post("/upload_law/")
-async def upload_law_documents(
-    law_files: List[UploadFile] = File(default=[])
-):
-    """Handles document uploads for laws files."""
-    results = {}
+async def upload_law_documents(law_files: List[UploadFile] = File(default=[])):
+    """Handles document uploads for laws."""
+    result = await handle_document_upload(law_files, "Laws")
+    return {"Laws": result}
 
-    if law_files:
-        # Convert uploaded files to BytesIO
-        law_file_objs = [BytesIO(await file.read()) for file in law_files]
-        law_processor = DocumentProcessor(law_file_objs)
-        law_text_chunks = law_processor.run()
-        results["Laws"] = "Success" if law_text_chunks and VectorStore.store_VDB("Laws", law_text_chunks) else "Failure"
-
-    return results
 
 @app.post("/upload_case/")
-async def upload_case_documents(
-    case_files: List[UploadFile] = File(default=[])
-):
+async def upload_case_documents(case_files: List[UploadFile] = File(default=[])):
     """Handles document uploads for case files."""
-    results = {}
+    result = await handle_document_upload(case_files, "Case")
+    return {"Case Files": result}
 
-    if case_files:
-        case_file_objs = [BytesIO(await file.read()) for file in case_files]
-        case_processor = DocumentProcessor(case_file_objs)
-        case_text_chunks = case_processor.run()
-        results["Case Files"] = "Success" if case_text_chunks and VectorStore.store_VDB("Case", case_text_chunks) else "Failure"
 
-    return results
-
-# Pydantic Model for Query Request
 class QueryRequest(BaseModel):
     question: str
-    model_choice: str
-    ollama_model: str = None
+    model_type: str
+    model_name: str = None
+
 
 @app.post("/query/")
 async def query(request: QueryRequest):
     """Processes user queries using Gemini Pro or an Ollama model."""
-    question = request.question
-    model_choice = request.model_choice
-    ollama_model = request.ollama_model
+    retrieved_docs = VectorRetriever.retrieve_faiss(request.question, ["Laws", "Case"])
 
-    # Retrieve relevant documents from FAISS
-    retrieved_docs = VectorRetriever.retrieve_faiss(question, ["Laws", "Case"])
+    if request.model_type == "Gemini":
+        model = GeminiPro(request.question, request.model_name)
+        response = model.generate_response(retrieved_docs)
 
-    if model_choice == "Gemini Pro":
-        ai_model = GeminiPro(question)
-        response_text = ai_model.generate_response(retrieved_docs)
-    elif ollama_model:
-        ai_model = OllamaModel(question, ollama_model)
-        response_text = ai_model.generate_response(retrieved_docs)
+    elif request.model_type == "Ollama":
+        ollama_data = OllamaModel.list_models()
+        if not ollama_data.get("connected"):
+            return {"response": "Ollama is not connected. Unable to fetch models."}
+
+        if request.model_name not in ollama_data.get("models", []):
+            return {"response": f"Model '{request.model_name}' not found in available Ollama models."}
+
+        model = OllamaModel(request.question, request.model_name)
+        response = model.generate_response(retrieved_docs)
     else:
-        response_text = "Invalid model selection."
+        return {"response": f" Invalid Model Type {request.model_type}"}
 
-    return {"response": response_text}
+    log_interaction(
+        model_type=request.model_type,
+        model_name=request.model_name or "N/A",
+        question=request.question,
+        answer=response  # truncate if needed
+    )
+
+    return {"response": response}
+
 
 @app.delete("/cleanup/")
 async def cleanup():
-    """Handles cleanup of the document database."""
+    """Cleans up all stored vectors from the database."""
     Cleanup.clear_vector_store("Laws")
     Cleanup.clear_vector_store("Case")
     return {"message": "Database cleaned successfully"}
