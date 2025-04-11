@@ -25,12 +25,11 @@ async def list_models():
         "ollama_models": ollama_models,
         "gemini_models": ["Gemini Pro"]
     }
-@app.post("/upload_documents/")
-async def upload_documents(
-    law_files: List[UploadFile] = File(default=[]),
-    case_files: List[UploadFile] = File(default=[])
+@app.post("/upload_law/")
+async def upload_law_documents(
+    law_files: List[UploadFile] = File(default=[])
 ):
-    """Handles document uploads for laws and case files."""
+    """Handles document uploads for laws files."""
     results = {}
 
     if law_files:
@@ -39,6 +38,15 @@ async def upload_documents(
         law_processor = DocumentProcessor(law_file_objs)
         law_text_chunks = law_processor.run()
         results["Laws"] = "Success" if law_text_chunks and VectorStore.store_VDB("Laws", law_text_chunks) else "Failure"
+
+    return results
+
+@app.post("/upload_case/")
+async def upload_case_documents(
+    case_files: List[UploadFile] = File(default=[])
+):
+    """Handles document uploads for case files."""
+    results = {}
 
     if case_files:
         case_file_objs = [BytesIO(await file.read()) for file in case_files]
