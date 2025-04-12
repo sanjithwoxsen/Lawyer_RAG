@@ -93,9 +93,11 @@ async def query(request: QueryRequest):
     return {"response": response}
 
 
+class CleanRequest(BaseModel):
+    database: List
+
 @app.delete("/cleanup/")
-async def cleanup():
+async def cleanup(database:CleanRequest):
     """Cleans up all stored vectors from the database."""
-    Cleanup.clear_vector_store("Laws")
-    Cleanup.clear_vector_store("Case")
-    return {"message": "Database cleaned successfully"}
+    Cleanup.clear_vector_store(database.database)
+    return {"message": f"Database {database} cleaned successfully"}
