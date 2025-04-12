@@ -1,69 +1,70 @@
-from io import BytesIO
-from typing import List
 from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
+from typing import List
+from io import BytesIO
+import os
+
+# Local module imports
 from modules.document.datapreprocess import DocumentProcessor
 from modules.document.vector_db import VectorStore
-from modules.loggers.interaction_logger import log_interaction
 from modules.retrieval.vector_retriever import VectorRetriever
 from modules.llm.ollama_llms import OllamaModel
 from modules.llm.gemini import GeminiPro
 from modules.document.cleanup import Cleanup
+from modules.loggers.interaction_logger import log_interaction
 
+# FastAPI app instance
 app = FastAPI()
 
+# ----------- ROUTES -----------
 
 @app.get("/list_models/")
 async def list_models():
-    """Lists available AI models, including Gemini Pro and Ollama models."""
-    ollama_data = OllamaModel.list_models()
+    """
+    Lists available AI models, including Gemini Pro and Ollama models.
+    Adjusts endpoint if running inside Docker.
+    """
+    if os.path.exists("/.dockerenv"):
+        print("Running inside Docker")
+        docker = True
+        ollama_data = OllamaModel.list_models(host="http://host.docker.internal:11434")
+    else:
+        print("Not running inside Docker")
+        docker = False
+        ollama_data = OllamaModel.list_models()
+
     gemini_models = [
         "gemini-1.5-flash", "gemini-1.5-flash-8b",
         "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemma-3-27b-it"
     ]
 
     return {
+        "Docker": docker,
         "ollama_models": ollama_data.get("models", []),
         "gemini_models": gemini_models
     }
 
 
-async def handle_document_upload(files: List[UploadFile], category: str) -> str:
-    """Helper function to process and store documents."""
-    if not files:
-        return "No files uploaded"
-
-    file_objs = [BytesIO(await file.read()) for file in files]
-    processor = DocumentProcessor(file_objs)
-    text_chunks = processor.run()
-
-    success = text_chunks and VectorStore.store_VDB(category, text_chunks)
-    return "Success" if success else "Failure"
-
-
 @app.post("/upload_law/")
 async def upload_law_documents(law_files: List[UploadFile] = File(default=[])):
-    """Handles document uploads for laws."""
+    """Uploads and stores legal documents under the 'Laws' category."""
     result = await handle_document_upload(law_files, "Laws")
     return {"Laws": result}
 
 
 @app.post("/upload_case/")
 async def upload_case_documents(case_files: List[UploadFile] = File(default=[])):
-    """Handles document uploads for case files."""
+    """Uploads and stores legal case documents under the 'Case' category."""
     result = await handle_document_upload(case_files, "Case")
     return {"Case Files": result}
 
 
-class QueryRequest(BaseModel):
-    question: str
-    model_type: str
-    model_name: str = None
-
-
 @app.post("/query/")
 async def query(request: QueryRequest):
-    """Processes user queries using Gemini Pro or an Ollama model."""
+    """
+    Handles a user query using either a Gemini Pro or Ollama model.
+    Retrieves relevant documents before generating a response.
+    """
     retrieved_docs = VectorRetriever.retrieve_faiss(request.question, ["Laws", "Case"])
 
     if request.model_type == "Gemini":
@@ -80,24 +81,49 @@ async def query(request: QueryRequest):
 
         model = OllamaModel(request.question, request.model_name)
         response = model.generate_response(retrieved_docs)
+
     else:
-        return {"response": f" Invalid Model Type {request.model_type}"}
+        return {"response": f"Invalid model type '{request.model_type}'"}
 
     log_interaction(
         model_type=request.model_type,
         model_name=request.model_name or "N/A",
         question=request.question,
-        answer=response  # truncate if needed
+        answer=response  # truncate here if needed
     )
 
     return {"response": response}
 
 
+@app.delete("/cleanup/")
+async def cleanup(request: CleanRequest):
+    """Deletes vectors from selected databases."""
+    Cleanup.clear_vector_store(request.database)
+    return {"message": f"Database {request.database} cleaned successfully"}
+
+
+# ----------- HELPERS & MODELS -----------
+
+class QueryRequest(BaseModel):
+    question: str
+    model_type: str
+    model_name: str = None
+
+
 class CleanRequest(BaseModel):
     database: List
 
-@app.delete("/cleanup/")
-async def cleanup(database:CleanRequest):
-    """Cleans up all stored vectors from the database."""
-    Cleanup.clear_vector_store(database.database)
-    return {"message": f"Database {database} cleaned successfully"}
+
+async def handle_document_upload(files: List[UploadFile], category: str) -> str:
+    """
+    Reads and processes uploaded documents, then stores them in a vector database.
+    """
+    if not files:
+        return "No files uploaded"
+
+    file_objs = [BytesIO(await file.read()) for file in files]
+    processor = DocumentProcessor(file_objs)
+    text_chunks = processor.run()
+
+    success = text_chunks and VectorStore.store_VDB(category, text_chunks)
+    return "Success" if success else "Failure"
