@@ -1,11 +1,10 @@
-import os
 import streamlit as st
-from modules.retrieval.vector_retriever import VectorRetriever
-from modules.llm.gemini import GeminiPro
-from modules.llm.ollama_llms import OllamaModel
-from modules.document.datapreprocess import DocumentProcessor
-from modules.document.vector_db import VectorStore
-from modules.document.cleanup import Cleanup
+from modules.workflow.retrieval.vector_retriever import VectorRetriever
+from modules.workflow.llm.gemini import GeminiPro
+from modules.workflow.llm.ollama_llms import OllamaModel
+from modules.workflow.document.datapreprocess import DocumentProcessor
+from modules.workflow.document.vector_db import VectorStore
+from modules.workflow.document.cleanup import Cleanup
 
 # Ensure Streamlit configuration is set first
 st.set_page_config(page_title="Legal AI Chatbot", page_icon="⚖️")

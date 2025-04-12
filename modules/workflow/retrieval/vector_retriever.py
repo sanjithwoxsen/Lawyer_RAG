@@ -1,6 +1,6 @@
 import os
-from modules.document.vector_db import VectorStore
-from modules.loggers.log_decorator import log_retrieved_docs
+from modules.workflow.document.vector_db import VectorStore
+from modules.utils.log_decorator import log_retrieved_docs
 
 log_dir = "logs"
 os.makedirs(log_dir, exist_ok=True)

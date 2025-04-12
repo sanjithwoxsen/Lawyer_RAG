@@ -2,7 +2,7 @@ from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from modules.config import configure_gemini_api
+from modules.workflow.config import configure_gemini_api
 
 #configuring_api
 configure_gemini_api()
@@ -31,6 +31,10 @@ class GeminiPro:
     def generate_response(self, retrieved_docs):
         """Generates a response based on retrieved documents."""
         doc = sum(retrieved_docs.values(), [])
+        if doc:
+            context_status = True
+        else:
+            context_status = False
 
         response = self.chain({"input_documents": doc, "question": self.user_question}, return_only_outputs=True)
-        return response["output_text"]
+        return response["output_text"],context_status

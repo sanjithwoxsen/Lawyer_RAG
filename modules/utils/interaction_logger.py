@@ -7,13 +7,15 @@ LOG_FILE = "logs/interactions.json"
 # Ensure log directory exists
 os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
-def log_interaction(model_type: str, model_name: str, question: str, answer: str):
+def log_interaction(model_type: str, model_name: str, question: str, answer: str,docker_status: bool,context_status:bool):
     log_entry = {
         "timestamp": datetime.now().isoformat(),
         "model_type": model_type,
         "model_name": model_name,
         "question": question,
-        "answer": answer
+        "answer": answer,
+        "Docker":docker_status,
+        "context_status":context_status
     }
 
     # Append the entry as a JSON line

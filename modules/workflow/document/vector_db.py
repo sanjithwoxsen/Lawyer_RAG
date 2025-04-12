@@ -1,7 +1,7 @@
 import os
 import logging
 from langchain.vectorstores import FAISS
-from modules.document.embeddings import embeddings
+from modules.workflow.document.embeddings import embeddings
 
 class VectorStore:
     @staticmethod
