@@ -9,3 +9,4 @@ requests~=2.31.0
 fastapi~=0.115.12
 pydantic~=2.11.3
 ollama~=0.4.7
+faiss-cpu~=1.8.0
