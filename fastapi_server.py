@@ -5,16 +5,42 @@ from io import BytesIO
 import os
 
 # Local module imports
-from modules.document.datapreprocess import DocumentProcessor
-from modules.document.vector_db import VectorStore
-from modules.retrieval.vector_retriever import VectorRetriever
-from modules.llm.ollama_llms import OllamaModel
-from modules.llm.gemini import GeminiPro
-from modules.document.cleanup import Cleanup
-from modules.loggers.interaction_logger import log_interaction
+from modules.workflow.document.datapreprocess import DocumentProcessor
+from modules.workflow.document.vector_db import VectorStore
+from modules.workflow.retrieval.vector_retriever import VectorRetriever
+from modules.workflow.llm.ollama_llms import OllamaModel
+from modules.workflow.llm.gemini import GeminiPro
+from modules.workflow.document.cleanup import Cleanup
+from modules.workflow.loggers.interaction_logger import log_interaction
 
 # FastAPI app instance
 app = FastAPI()
+
+# ----------- HELPERS & MODELS -----------
+
+class QueryRequest(BaseModel):
+    question: str
+    model_type: str
+    model_name: str = None
+
+
+class CleanRequest(BaseModel):
+    database: List
+
+
+async def handle_document_upload(files: List[UploadFile], category: str) -> str:
+    """
+    Reads and processes uploaded documents, then stores them in a vector database.
+    """
+    if not files:
+        return "No files uploaded"
+
+    file_objs = [BytesIO(await file.read()) for file in files]
+    processor = DocumentProcessor(file_objs)
+    text_chunks = processor.run()
+
+    success = text_chunks and VectorStore.store_VDB(category, text_chunks)
+    return "Success" if success else "Failure"
 
 # ----------- ROUTES -----------
 
@@ -101,29 +127,3 @@ async def cleanup(request: CleanRequest):
     Cleanup.clear_vector_store(request.database)
     return {"message": f"Database {request.database} cleaned successfully"}
 
-
-# ----------- HELPERS & MODELS -----------
-
-class QueryRequest(BaseModel):
-    question: str
-    model_type: str
-    model_name: str = None
-
-
-class CleanRequest(BaseModel):
-    database: List
-
-
-async def handle_document_upload(files: List[UploadFile], category: str) -> str:
-    """
-    Reads and processes uploaded documents, then stores them in a vector database.
-    """
-    if not files:
-        return "No files uploaded"
-
-    file_objs = [BytesIO(await file.read()) for file in files]
-    processor = DocumentProcessor(file_objs)
-    text_chunks = processor.run()
-
-    success = text_chunks and VectorStore.store_VDB(category, text_chunks)
-    return "Success" if success else "Failure"
