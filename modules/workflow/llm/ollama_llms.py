@@ -10,7 +10,7 @@ class OllamaModel:
         # Check if running inside a Docker container
 
         self.is_docker = is_running_in_docker()
-        self.host = "http://host.docker.internal:11434" if self.is_docker else None
+        host = "http://host.docker.internal:11434" if self.is_docker else None
 
         try:
             self.client = Client(host=host) if host else Client()
