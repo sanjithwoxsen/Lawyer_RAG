@@ -1,3 +1,5 @@
+from streamlit import connection
+
 from modules.utils.docker_utils import is_running_in_docker
 from modules.workflow.retrieval.vector_retriever import VectorRetriever
 from modules.workflow.llm.ollama_llms import OllamaModel
@@ -11,6 +13,7 @@ async def process_query(request: QueryRequest) -> dict:
     if request.model_type == "Gemini":
         model = GeminiPro(request.question, request.model_name)
         response,context_status= model.generate_response(retrieved_docs)
+        connection_type = "Gemini"
 
     elif request.model_type == "Ollama":
         ollama_data = OllamaModel.list_models()
@@ -21,6 +24,7 @@ async def process_query(request: QueryRequest) -> dict:
             return {"response": f"Model '{request.model_name}' not found in available Ollama models."}
 
         model = OllamaModel(request.question, request.model_name)
+        connection_type = model.connection_type
         response,context_status = model.generate_response(retrieved_docs)
     else:
         return {"response": f"Invalid model type '{request.model_type}'"}
@@ -34,4 +38,5 @@ async def process_query(request: QueryRequest) -> dict:
         context_status = context_status
     )
 
-    return {"response": response}
+    return {"response": response,
+            "Connection_type":connection_type}

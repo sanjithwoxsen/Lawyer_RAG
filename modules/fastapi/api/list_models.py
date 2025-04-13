@@ -5,7 +5,7 @@ from modules.workflow.llm.ollama_llms import OllamaModel
 router = APIRouter()
 
 @router.get("/list_models/")
-async def list_models():
+async def list_models(Ollama_host=None):
     """
     Endpoint to list available AI models (Ollama and Gemini).
 
@@ -16,7 +16,7 @@ async def list_models():
             - gemini_models (List[str]): Available Gemini model names
     """
     # Get Ollama model data (includes models, connection status, and docker flag)
-    ollama_data = OllamaModel.list_models()
+    ollama_data = OllamaModel.list_models(Ollama_host)
 
     # Hardcoded Gemini model list (replace or fetch dynamically if needed)
     gemini_models = [
@@ -27,6 +27,8 @@ async def list_models():
     # Return the model metadata
     return {
         "docker": ollama_data.get("docker", False),
+        "connection": ollama_data.get("connected", []),
+        "Connection_type": ollama_data.get("connection_type", []),
         "ollama_models": ollama_data.get("models", []),
         "gemini_models": gemini_models
     }

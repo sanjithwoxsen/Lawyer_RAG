@@ -7,10 +7,18 @@ class OllamaModel:
         """Initializes the Ollama model for processing user queries."""
         self.user_question = user_question
         self.model_name = model_name
-        # Check if running inside a Docker container
 
+        # Check if running inside a Docker container
         self.is_docker = is_running_in_docker()
-        host = "http://host.docker.internal:11434" if self.is_docker else None
+
+        # Determine connection type
+        if host:
+            self.connection_type = "external"
+        elif self.is_docker:
+            host = "http://host.docker.internal:11434"
+            self.connection_type = "docker_internal"
+        else:
+            self.connection_type = "internal"
 
         try:
             self.client = Client(host=host) if host else Client()
@@ -26,7 +34,7 @@ class OllamaModel:
 
         all_contexts = [doc.page_content for doc in sum(retrieved_docs.values(), [])]
 
-        if  all_contexts:
+        if all_contexts:
             context_text = "\n\n".join(all_contexts)
             messages = [{
                 "role": "user",
@@ -40,15 +48,14 @@ class OllamaModel:
             }]
             context = False
 
-
         try:
             response = self.client.chat(model=self.model_name, messages=messages)
-            return response.message.content,context
+            return response.message.content, context
         except Exception:
             return "Failed to generate response from Ollama."
 
     @staticmethod
-    def list_models():
+    def list_models(host=None):
         """
         Lists available Ollama models.
 
@@ -56,12 +63,20 @@ class OllamaModel:
             dict: {
                 'models': list of model names or a message if not connected,
                 'connected': boolean indicating connection status,
-                'docker': boolean indicating if running inside Docker
+                'docker': boolean indicating if running inside Docker,
+                'connection_type': 'external' | 'docker_internal' | 'internal'
             }
         """
         # Check if running inside a Docker container
         is_docker = is_running_in_docker()
-        host = "http://host.docker.internal:11434" if is_docker else None
+
+        # Determine connection type
+        connection_type = 'internal'  # default
+        if host:
+            connection_type = 'external'
+        elif is_docker:
+            host = "http://host.docker.internal:11434"
+            connection_type = 'docker_internal'
 
         try:
             client = Client(host=host) if host else Client()
@@ -71,13 +86,15 @@ class OllamaModel:
             return {
                 "models": models,
                 "connected": True,
-                "docker": is_docker
+                "docker": is_docker,
+                "connection_type": connection_type
             }
 
         except Exception as e:
-            print(f"[OllamaModel] Connection failed: {e}")
+            a = f"[OllamaModel] Connection failed: {e}"
             return {
                 "models": ["Ollama not connected"],
                 "connected": False,
-                "docker": is_docker
+                "docker": is_docker,
+                "connection_type": connection_type
             }
