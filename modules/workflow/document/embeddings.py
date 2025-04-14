@@ -1,7 +1,7 @@
 import logging
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import os
-from modules.utils.config import configure_gemini_api
+from modules.utils.gemini_config import configure_gemini_api
 
 #configuring_api
 configure_gemini_api()

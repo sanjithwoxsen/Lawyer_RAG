@@ -2,7 +2,7 @@ from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from modules.utils.config import configure_gemini_api
+from modules.utils.gemini_config import configure_gemini_api
 
 #configuring_api
 configure_gemini_api()

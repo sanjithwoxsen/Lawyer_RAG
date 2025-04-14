@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from modules.workflow.llm.ollama_llms import OllamaModel
-
+from modules.utils.gemini_config import configure_gemini_api
 # Initialize the API router
 router = APIRouter()
 
@@ -18,6 +18,7 @@ async def list_models(Ollama_host=None):
     # Get Ollama model data (includes models, connection status, and docker flag)
     ollama_data = OllamaModel.list_models(Ollama_host)
 
+    gemini_connection = configure_gemini_api()
     # Hardcoded Gemini model list (replace or fetch dynamically if needed)
     gemini_models = [
         "gemini-1.5-flash", "gemini-1.5-flash-8b",
@@ -26,9 +27,10 @@ async def list_models(Ollama_host=None):
 
     # Return the model metadata
     return {
-        "docker": ollama_data.get("docker", False),
-        "connection": ollama_data.get("connected", []),
-        "Connection_type": ollama_data.get("connection_type", []),
-        "ollama_models": ollama_data.get("models", []),
-        "gemini_models": gemini_models
+        "Docker": ollama_data.get("docker", False),
+        "Ollama_Connection": ollama_data.get("connected", []),
+        "Ollama_Connection_Type": ollama_data.get("connection_type", []),
+        "Ollama_models": ollama_data.get("models", []),
+        "Gemini_Connection": gemini_connection,
+        "Gemini_models": gemini_models
     }
