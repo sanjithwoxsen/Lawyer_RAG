@@ -14,7 +14,7 @@ def configure_gemini_api():
     # Ensure API Key is available
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
-        return "Missing GOOGLE_API_KEY. Ensure it's set in the environment or .env file."
+        return False
 
     print("✅ Google API Key Loaded Successfully")
 
@@ -26,7 +26,7 @@ def configure_gemini_api():
 
     print("✅ Connection established with Google Gemini API")
 
-    return "✅ Connection established with Google Gemini API"
+    return True
 
 
 # Example usage

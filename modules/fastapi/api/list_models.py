@@ -26,11 +26,23 @@ async def list_models(Ollama_host=None):
     ]
 
     # Return the model metadata
-    return {
-        "Docker": ollama_data.get("docker", False),
-        "Ollama_Connection": ollama_data.get("connected", []),
-        "Ollama_Connection_Type": ollama_data.get("connection_type", []),
-        "Ollama_models": ollama_data.get("models", []),
-        "Gemini_Connection": gemini_connection,
-        "Gemini_models": gemini_models
-    }
+    if gemini_connection:
+        return {
+            "Docker": ollama_data.get("docker", False),
+            "Ollama_Connection": ollama_data.get("connected", []),
+            "Ollama_Connection_Type": ollama_data.get("connection_type", []),
+            "Ollama_models": ollama_data.get("models", []),
+            "Gemini_Connection": gemini_connection,
+            "Gemini_models": gemini_models
+        }
+    else:
+        return {
+            "Docker": ollama_data.get("docker", False),
+            "Ollama_Connection": ollama_data.get("connected", []),
+            "Ollama_Connection_Type": ollama_data.get("connection_type", []),
+            "Ollama_models": ollama_data.get("models", []),
+            "Gemini_Connection": gemini_connection,
+            "Gemini_Connection_issue":"Missing GOOGLE_API_KEY. Ensure it's set in the environment or .env file.",
+            "Gemini_models": gemini_models
+        }
+
