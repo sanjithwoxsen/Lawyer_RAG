@@ -1,11 +1,13 @@
 from fastapi import APIRouter
 from modules.workflow.llm.ollama_llms import OllamaModel
 from modules.utils.gemini_config import configure_gemini_api
+from modules.fastapi.schemas.Ollama_external_url import OllamaUrl
 # Initialize the API router
 router = APIRouter()
 
-@router.get("/list_models/")
-async def list_models(Ollama_host=None):
+@router.post("/list_models")
+async def list_models(Ollama_host : OllamaUrl):
+    print(Ollama_host.ExternalUrl)
     """
     Endpoint to list available AI models (Ollama and Gemini).
 
@@ -16,7 +18,7 @@ async def list_models(Ollama_host=None):
             - gemini_models (List[str]): Available Gemini model names
     """
     # Get Ollama model data (includes models, connection status, and docker flag)
-    ollama_data = OllamaModel.list_models(Ollama_host)
+    ollama_data = OllamaModel.list_models(Ollama_host.ExternalUrl)
 
     gemini_connection = configure_gemini_api()
     # Hardcoded Gemini model list (replace or fetch dynamically if needed)
